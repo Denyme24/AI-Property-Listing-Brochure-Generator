@@ -197,7 +197,7 @@ func (h *PropertyHandler) SubmitProperty(c *fiber.Ctx) error {
 
 	// Upload PDF to S3
 	log.Println("Uploading PDF to S3...")
-	pdfURL, err := h.s3Service.UploadPDF(pdfData, property.Title)
+	pdfUrls, err := h.s3Service.UploadPDFWithUrls(pdfData, property.Title)
 	if err != nil {
 		log.Printf("Error uploading PDF: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
@@ -207,7 +207,7 @@ func (h *PropertyHandler) SubmitProperty(c *fiber.Ctx) error {
 		})
 	}
 
-	property.PDFUrl = pdfURL
+	property.PDFUrl = pdfUrls.ViewUrl // Store view URL as default
 
 	// Save to MongoDB
 	log.Println("Saving to MongoDB...")
@@ -225,12 +225,14 @@ func (h *PropertyHandler) SubmitProperty(c *fiber.Ctx) error {
 		})
 	}
 
-	// Return success response
+	// Return success response with both URLs
 	return c.Status(fiber.StatusCreated).JSON(models.PropertyResponse{
-		Success:    true,
-		Message:    "Property listing created successfully",
-		PropertyID: property.ID.Hex(),
-		PDFUrl:     pdfURL,
+		Success:        true,
+		Message:        "Property listing created successfully",
+		PropertyID:     property.ID.Hex(),
+		PDFUrl:         pdfUrls.ViewUrl,     // Default URL (for backward compatibility)
+		PDFViewUrl:     pdfUrls.ViewUrl,     // Opens in browser
+		PDFDownloadUrl: pdfUrls.DownloadUrl, // Forces download
 	})
 }
 

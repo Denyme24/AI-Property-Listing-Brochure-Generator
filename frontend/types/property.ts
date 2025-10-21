@@ -30,6 +30,8 @@ export interface PropertySubmissionResponse {
   message: string;
   propertyId?: string;
   pdfUrl?: string;
+  pdfViewUrl?: string;
+  pdfDownloadUrl?: string;
 }
 
 export interface ImagePreview {

@@ -103,19 +103,21 @@ export async function submitPropertyListingJSON(
 
 export async function downloadPDF(pdfUrl: string, filename: string = 'property-brochure.pdf') {
   try {
-    const response = await fetch(pdfUrl);
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    
+    // Pre-signed URLs can be opened directly without fetching
+    // This avoids CORS issues with S3
     const link = document.createElement('a');
-    link.href = url;
+    link.href = pdfUrl;
     link.download = filename;
+    link.target = '_blank'; // Open in new tab as fallback
+    link.rel = 'noopener noreferrer';
+    
     document.body.appendChild(link);
     link.click();
     
     // Clean up
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+    setTimeout(() => {
+      document.body.removeChild(link);
+    }, 100);
   } catch (error) {
     console.error('Error downloading PDF:', error);
     throw error;

@@ -49,7 +49,10 @@ export function PropertyForm({ onClose }: PropertyFormProps) {
     resetFormState,
   } = usePropertyForm();
 
-  const [pdfUrl, setPdfUrl] = React.useState<string | null>(null);
+  const [pdfViewUrl, setPdfViewUrl] = React.useState<string | null>(null);
+  const [pdfDownloadUrl, setPdfDownloadUrl] = React.useState<string | null>(
+    null
+  );
   const [propertyId, setPropertyId] = React.useState<string | null>(null);
 
   const {
@@ -87,7 +90,8 @@ export function PropertyForm({ onClose }: PropertyFormProps) {
 
       if (response.success) {
         setIsSuccess(true);
-        setPdfUrl(response.pdfUrl || null);
+        setPdfViewUrl(response.pdfViewUrl || response.pdfUrl || null);
+        setPdfDownloadUrl(response.pdfDownloadUrl || response.pdfUrl || null);
         setPropertyId(response.propertyId || null);
         toast.success(
           response.message || "Property listing created successfully!"
@@ -105,23 +109,26 @@ export function PropertyForm({ onClose }: PropertyFormProps) {
     }
   };
 
-  const handleDownloadPDF = async () => {
-    if (!pdfUrl) return;
+  const handleDownloadPDF = () => {
+    if (!pdfDownloadUrl) return;
 
-    try {
-      toast.info("Downloading PDF...");
-      await downloadPDF(pdfUrl, `property-brochure-${propertyId}.pdf`);
-      toast.success("PDF downloaded successfully!");
-    } catch (error) {
-      toast.error("Failed to download PDF");
-      console.error("Error downloading PDF:", error);
-    }
+    // Open the download URL directly - it will force download due to attachment disposition
+    window.open(pdfDownloadUrl, "_blank");
+    toast.success("PDF download started!");
+  };
+
+  const handleViewPDF = () => {
+    if (!pdfViewUrl) return;
+
+    // Open the view URL in a new tab - it will display inline in browser
+    window.open(pdfViewUrl, "_blank");
   };
 
   const handleReset = () => {
     reset();
     resetFormState();
-    setPdfUrl(null);
+    setPdfViewUrl(null);
+    setPdfDownloadUrl(null);
     setPropertyId(null);
   };
 
@@ -145,21 +152,36 @@ export function PropertyForm({ onClose }: PropertyFormProps) {
             </p>
           )}
         </div>
-        <div className="flex gap-3">
-          {pdfUrl && (
-            <Button onClick={handleDownloadPDF} className="gap-2">
-              <Download className="h-4 w-4" />
-              Download Brochure
-            </Button>
+        <div className="flex flex-col gap-3">
+          {(pdfViewUrl || pdfDownloadUrl) && (
+            <div className="flex gap-3 justify-center">
+              {pdfViewUrl && (
+                <Button
+                  onClick={handleViewPDF}
+                  variant="outline"
+                  className="gap-2"
+                >
+                  View PDF
+                </Button>
+              )}
+              {pdfDownloadUrl && (
+                <Button onClick={handleDownloadPDF} className="gap-2">
+                  <Download className="h-4 w-4" />
+                  Download PDF
+                </Button>
+              )}
+            </div>
           )}
-          <Button onClick={handleReset} variant="outline">
-            Create Another
-          </Button>
-          {onClose && (
-            <Button onClick={onClose} variant="ghost">
-              Close
+          <div className="flex gap-3 justify-center">
+            <Button onClick={handleReset} variant="outline">
+              Create Another Listing
             </Button>
-          )}
+            {onClose && (
+              <Button onClick={onClose} variant="ghost">
+                Close
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     );

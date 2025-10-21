@@ -58,10 +58,12 @@ type PropertyRequest struct {
 
 // PropertyResponse represents the API response
 type PropertyResponse struct {
-	Success    bool   `json:"success"`
-	Message    string `json:"message"`
-	PropertyID string `json:"propertyId,omitempty"`
-	PDFUrl     string `json:"pdfUrl,omitempty"`
+	Success        bool   `json:"success"`
+	Message        string `json:"message"`
+	PropertyID     string `json:"propertyId,omitempty"`
+	PDFUrl         string `json:"pdfUrl,omitempty"`
+	PDFViewUrl     string `json:"pdfViewUrl,omitempty"`
+	PDFDownloadUrl string `json:"pdfDownloadUrl,omitempty"`
 }
 
 // ErrorResponse represents an error response
