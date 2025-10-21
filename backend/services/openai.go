@@ -63,7 +63,7 @@ The description should be 3-4 paragraphs long, highlight the key features, and a
 	arabicPrompt := fmt.Sprintf("Translate the following real estate property description to Arabic. Maintain the professional tone and structure:\n\n%s", englishDesc)
 	
 	arabicResp, err := s.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
-		Model: openai.GPT4,
+		Model: "gpt-4o-mini",
 		Messages: []openai.ChatCompletionMessage{
 			{
 				Role:    openai.ChatMessageRoleSystem,
