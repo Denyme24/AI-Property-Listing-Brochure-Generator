@@ -31,7 +31,7 @@ export const UI_CONFIG = {
 
 // Validation Patterns
 export const VALIDATION_PATTERNS = {
-  zipCode: /^\d{5}(-\d{4})?$/,
+  zipCode: /^\d{5,6}(-\d{4})?$/,
   email: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
   phone: /^[\d\s\-\(\)]+$/,
 };

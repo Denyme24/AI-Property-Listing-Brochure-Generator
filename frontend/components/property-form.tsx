@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,10 +21,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { X, Upload, Loader2, CheckCircle2 } from "lucide-react";
+import { X, Upload, Loader2, CheckCircle2, Download } from "lucide-react";
 import Image from "next/image";
 import type { PropertyFormData, Currency } from "@/types/property";
 import { usePropertyForm } from "@/hooks/usePropertyForm";
+import { submitPropertyListing, downloadPDF } from "@/lib/api";
+import { toast } from "sonner";
 
 interface PropertyFormProps {
   onClose?: () => void;
@@ -46,6 +49,9 @@ export function PropertyForm({ onClose }: PropertyFormProps) {
     resetFormState,
   } = usePropertyForm();
 
+  const [pdfUrl, setPdfUrl] = React.useState<string | null>(null);
+  const [propertyId, setPropertyId] = React.useState<string | null>(null);
+
   const {
     register,
     handleSubmit,
@@ -60,25 +66,63 @@ export function PropertyForm({ onClose }: PropertyFormProps) {
 
   // Handle form submission
   const onSubmit = async (data: PropertyFormData) => {
+    // Validate images
+    if (images.length === 0) {
+      toast.error("Please upload at least one image");
+      return;
+    }
+
+    // Validate amenities
+    if (amenities.length === 0) {
+      toast.error("Please add at least one amenity");
+      return;
+    }
+
     setIsSubmitting(true);
 
-    // Simulate API call - Replace with actual API call when backend is ready
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    try {
+      // Submit property listing
+      const imageFiles = images.map((img) => img.file);
+      const response = await submitPropertyListing(data, amenities, imageFiles);
 
-    console.log("Form Data:", {
-      ...data,
-      amenities,
-      images: images.map((img) => img.file.name),
-    });
+      if (response.success) {
+        setIsSuccess(true);
+        setPdfUrl(response.pdfUrl || null);
+        setPropertyId(response.propertyId || null);
+        toast.success(
+          response.message || "Property listing created successfully!"
+        );
+      } else {
+        throw new Error(response.message || "Failed to submit property");
+      }
+    } catch (error) {
+      const errorMsg =
+        error instanceof Error ? error.message : "An unexpected error occurred";
+      toast.error(errorMsg);
+      console.error("Error submitting property:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-    setIsSubmitting(false);
-    setIsSuccess(true);
+  const handleDownloadPDF = async () => {
+    if (!pdfUrl) return;
 
-    // Reset form after a delay
-    setTimeout(() => {
-      reset();
-      resetFormState();
-    }, 3000);
+    try {
+      toast.info("Downloading PDF...");
+      await downloadPDF(pdfUrl, `property-brochure-${propertyId}.pdf`);
+      toast.success("PDF downloaded successfully!");
+    } catch (error) {
+      toast.error("Failed to download PDF");
+      console.error("Error downloading PDF:", error);
+    }
+  };
+
+  const handleReset = () => {
+    reset();
+    resetFormState();
+    setPdfUrl(null);
+    setPropertyId(null);
   };
 
   if (isSuccess) {
@@ -89,17 +133,34 @@ export function PropertyForm({ onClose }: PropertyFormProps) {
         </div>
         <div className="space-y-2">
           <h2 className="text-2xl font-bold text-gray-900">
-            Submission Successful!
+            Brochure Generated Successfully!
           </h2>
           <p className="text-gray-600 max-w-md">
-            Thank you for submitting your property listing. We&apos;ll review
-            your information and reach back to you soon with your professionally
-            designed brochure.
+            Your property brochure has been generated with AI-powered content in
+            both English and Arabic.
           </p>
+          {propertyId && (
+            <p className="text-sm text-gray-500">
+              Property ID: <span className="font-mono">{propertyId}</span>
+            </p>
+          )}
         </div>
-        <Button onClick={onClose} variant="outline">
-          Close
-        </Button>
+        <div className="flex gap-3">
+          {pdfUrl && (
+            <Button onClick={handleDownloadPDF} className="gap-2">
+              <Download className="h-4 w-4" />
+              Download Brochure
+            </Button>
+          )}
+          <Button onClick={handleReset} variant="outline">
+            Create Another
+          </Button>
+          {onClose && (
+            <Button onClick={onClose} variant="ghost">
+              Close
+            </Button>
+          )}
+        </div>
       </div>
     );
   }
@@ -235,12 +296,12 @@ export function PropertyForm({ onClose }: PropertyFormProps) {
               <Label htmlFor="zipCode">ZIP Code *</Label>
               <Input
                 id="zipCode"
-                placeholder="e.g., 90001"
+                placeholder="e.g., 90001 or 845420"
                 {...register("zipCode", {
                   required: "ZIP code is required",
                   pattern: {
-                    value: /^\d{5}(-\d{4})?$/,
-                    message: "Invalid ZIP code format",
+                    value: /^\d{5,6}(-\d{4})?$/,
+                    message: "Invalid ZIP/PIN code format",
                   },
                 })}
                 className={errors.zipCode ? "border-red-500" : ""}

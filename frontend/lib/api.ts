@@ -7,13 +7,23 @@ export async function submitPropertyListing(
   images: File[]
 ): Promise<PropertySubmissionResponse> {
   try {
+    // Validate required fields
+    if (!data.title || !data.price || !data.address || !data.city || !data.state || !data.zipCode) {
+      throw new Error('Please fill in all required fields');
+    }
+
+    if (images.length === 0) {
+      throw new Error('Please upload at least one image');
+    }
+
     // Create FormData for file upload
     const formData = new FormData();
 
     // Append property data
     formData.append('title', data.title);
-    formData.append('description', data.description);
+    formData.append('description', data.description || '');
     formData.append('price', data.price.toString());
+    formData.append('currency', data.currency || 'Dollar');
     formData.append('address', data.address);
     formData.append('city', data.city);
     formData.append('state', data.state);
@@ -41,11 +51,12 @@ export async function submitPropertyListing(
       }
     );
 
+    const result = await response.json();
+
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error(result.message || result.error || `HTTP error! status: ${response.status}`);
     }
 
-    const result: PropertySubmissionResponse = await response.json();
     return result;
 
   } catch (error) {
