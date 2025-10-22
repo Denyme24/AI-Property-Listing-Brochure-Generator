@@ -29,9 +29,15 @@ export interface PropertySubmissionResponse {
   success: boolean;
   message: string;
   propertyId?: string;
-  pdfUrl?: string;
-  pdfViewUrl?: string;
-  pdfDownloadUrl?: string;
+  pdfUrl?: string; // Legacy field
+  pdfViewUrl?: string; // Legacy field
+  pdfDownloadUrl?: string; // Legacy field
+  pdfUrlEnglish?: string;
+  pdfUrlArabic?: string;
+  pdfViewUrlEnglish?: string;
+  pdfViewUrlArabic?: string;
+  pdfDownloadUrlEnglish?: string;
+  pdfDownloadUrlArabic?: string;
 }
 
 export interface ImagePreview {

@@ -138,7 +138,7 @@ func (h *PropertyHandler) SubmitProperty(c *fiber.Ctx) error {
 		}
 	}
 
-	// Generate AI content
+	// Generate AI content (legacy for backward compatibility)
 	log.Println("Generating AI content...")
 	aiContent, err := h.openaiService.GeneratePropertyContent(
 		req.Title,
@@ -154,6 +154,22 @@ func (h *PropertyHandler) SubmitProperty(c *fiber.Ctx) error {
 			Message: "Failed to generate AI content",
 			Error:   err.Error(),
 		})
+	}
+
+	// Generate fully localized content for English and Arabic
+	log.Println("Generating localized content for English and Arabic...")
+	localizedContent, err := h.openaiService.GenerateLocalizedContent(
+		req.Title,
+		req.Description,
+		fmt.Sprintf("%.2f", req.Price),
+		req.Currency,
+		req.Amenities,
+	)
+	if err != nil {
+		log.Printf("Error generating localized content: %v", err)
+		// Continue with legacy content if localized generation fails
+		log.Println("Falling back to legacy AI content")
+		localizedContent = nil
 	}
 
 	// Create property document
@@ -183,31 +199,96 @@ func (h *PropertyHandler) SubmitProperty(c *fiber.Ctx) error {
 		UpdatedAt: time.Now(),
 	}
 
-	// Generate PDF brochure
-	log.Println("Generating PDF brochure...")
-	pdfData, err := h.pdfService.GenerateBrochure(property)
+	// Add localized content if available
+	if localizedContent != nil {
+		property.EnglishContent = models.LocalizedContent{
+			Title:                    localizedContent.EnglishContent.Title,
+			Description:              localizedContent.EnglishContent.Description,
+			PriceLabel:               localizedContent.EnglishContent.PriceLabel,
+			AddressLabel:             localizedContent.EnglishContent.AddressLabel,
+			CityLabel:                localizedContent.EnglishContent.CityLabel,
+			StateLabel:               localizedContent.EnglishContent.StateLabel,
+			ZipCodeLabel:             localizedContent.EnglishContent.ZipCodeLabel,
+			Highlights:               localizedContent.EnglishContent.Highlights,
+			AmenitiesLabel:           localizedContent.EnglishContent.AmenitiesLabel,
+			Amenities:                localizedContent.EnglishContent.TranslatedAmenities,
+			AgentLabel:               localizedContent.EnglishContent.AgentLabel,
+			PropertyDescriptionLabel: localizedContent.EnglishContent.PropertyDescriptionLabel,
+			KeyHighlightsLabel:       localizedContent.EnglishContent.KeyHighlightsLabel,
+			PropertyGalleryLabel:     localizedContent.EnglishContent.PropertyGalleryLabel,
+		}
+		property.ArabicContent = models.LocalizedContent{
+			Title:                    localizedContent.ArabicContent.Title,
+			Description:              localizedContent.ArabicContent.Description,
+			PriceLabel:               localizedContent.ArabicContent.PriceLabel,
+			AddressLabel:             localizedContent.ArabicContent.AddressLabel,
+			CityLabel:                localizedContent.ArabicContent.CityLabel,
+			StateLabel:               localizedContent.ArabicContent.StateLabel,
+			ZipCodeLabel:             localizedContent.ArabicContent.ZipCodeLabel,
+			Highlights:               localizedContent.ArabicContent.Highlights,
+			AmenitiesLabel:           localizedContent.ArabicContent.AmenitiesLabel,
+			Amenities:                localizedContent.ArabicContent.TranslatedAmenities,
+			AgentLabel:               localizedContent.ArabicContent.AgentLabel,
+			PropertyDescriptionLabel: localizedContent.ArabicContent.PropertyDescriptionLabel,
+			KeyHighlightsLabel:       localizedContent.ArabicContent.KeyHighlightsLabel,
+			PropertyGalleryLabel:     localizedContent.ArabicContent.PropertyGalleryLabel,
+		}
+	}
+
+	// Generate English PDF brochure
+	log.Println("Generating English PDF brochure...")
+	pdfDataEnglish, err := h.pdfService.GenerateEnglishBrochure(property)
 	if err != nil {
-		log.Printf("Error generating PDF: %v", err)
+		log.Printf("Error generating English PDF: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
 			Success: false,
-			Message: "Failed to generate PDF",
+			Message: "Failed to generate English PDF",
 			Error:   err.Error(),
 		})
 	}
 
-	// Upload PDF to S3
-	log.Println("Uploading PDF to S3...")
-	pdfUrls, err := h.s3Service.UploadPDFWithUrls(pdfData, property.Title)
+	// Generate Arabic PDF brochure
+	log.Println("Generating Arabic PDF brochure...")
+	pdfDataArabic, err := h.pdfService.GenerateArabicBrochure(property)
 	if err != nil {
-		log.Printf("Error uploading PDF: %v", err)
+		log.Printf("Error generating Arabic PDF: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
 			Success: false,
-			Message: "Failed to upload PDF",
+			Message: "Failed to generate Arabic PDF",
 			Error:   err.Error(),
 		})
 	}
 
-	property.PDFUrl = pdfUrls.ViewUrl // Store view URL as default
+	// Upload English PDF to S3
+	log.Println("Uploading English PDF to S3...")
+	titleEnglish := property.Title + "_en"
+	pdfUrlsEnglish, err := h.s3Service.UploadPDFWithUrls(pdfDataEnglish, titleEnglish)
+	if err != nil {
+		log.Printf("Error uploading English PDF: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
+			Success: false,
+			Message: "Failed to upload English PDF",
+			Error:   err.Error(),
+		})
+	}
+
+	// Upload Arabic PDF to S3
+	log.Println("Uploading Arabic PDF to S3...")
+	titleArabic := property.Title + "_ar"
+	pdfUrlsArabic, err := h.s3Service.UploadPDFWithUrls(pdfDataArabic, titleArabic)
+	if err != nil {
+		log.Printf("Error uploading Arabic PDF: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(models.ErrorResponse{
+			Success: false,
+			Message: "Failed to upload Arabic PDF",
+			Error:   err.Error(),
+		})
+	}
+
+	// Store both PDFs' URLs
+	property.PDFUrl = pdfUrlsEnglish.ViewUrl // Store view URL as default (English for backward compatibility)
+	property.PDFUrlEnglish = pdfUrlsEnglish.ViewUrl
+	property.PDFUrlArabic = pdfUrlsArabic.ViewUrl
 
 	// Save to MongoDB
 	log.Println("Saving to MongoDB...")
@@ -225,14 +306,20 @@ func (h *PropertyHandler) SubmitProperty(c *fiber.Ctx) error {
 		})
 	}
 
-	// Return success response with both URLs
+	// Return success response with both English and Arabic PDF URLs
 	return c.Status(fiber.StatusCreated).JSON(models.PropertyResponse{
-		Success:        true,
-		Message:        "Property listing created successfully",
-		PropertyID:     property.ID.Hex(),
-		PDFUrl:         pdfUrls.ViewUrl,     // Default URL (for backward compatibility)
-		PDFViewUrl:     pdfUrls.ViewUrl,     // Opens in browser
-		PDFDownloadUrl: pdfUrls.DownloadUrl, // Forces download
+		Success:               true,
+		Message:               "Property listing created successfully",
+		PropertyID:            property.ID.Hex(),
+		PDFUrl:                pdfUrlsEnglish.ViewUrl,     // Default URL (English for backward compatibility)
+		PDFUrlEnglish:         pdfUrlsEnglish.ViewUrl,     // English PDF view URL
+		PDFUrlArabic:          pdfUrlsArabic.ViewUrl,      // Arabic PDF view URL
+		PDFViewUrl:            pdfUrlsEnglish.ViewUrl,     // Legacy: Opens in browser
+		PDFDownloadUrl:        pdfUrlsEnglish.DownloadUrl, // Legacy: Forces download
+		PDFViewUrlEnglish:     pdfUrlsEnglish.ViewUrl,     // English view URL
+		PDFViewUrlArabic:      pdfUrlsArabic.ViewUrl,      // Arabic view URL
+		PDFDownloadUrlEnglish: pdfUrlsEnglish.DownloadUrl, // English download URL
+		PDFDownloadUrlArabic:  pdfUrlsArabic.DownloadUrl,  // Arabic download URL
 	})
 }
 

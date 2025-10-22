@@ -25,7 +25,7 @@ import { X, Upload, Loader2, CheckCircle2, Download } from "lucide-react";
 import Image from "next/image";
 import type { PropertyFormData, Currency } from "@/types/property";
 import { usePropertyForm } from "@/hooks/usePropertyForm";
-import { submitPropertyListing, downloadPDF } from "@/lib/api";
+import { submitPropertyListing } from "@/lib/api";
 import { toast } from "sonner";
 
 interface PropertyFormProps {
@@ -49,10 +49,18 @@ export function PropertyForm({ onClose }: PropertyFormProps) {
     resetFormState,
   } = usePropertyForm();
 
-  const [pdfViewUrl, setPdfViewUrl] = React.useState<string | null>(null);
-  const [pdfDownloadUrl, setPdfDownloadUrl] = React.useState<string | null>(
+  const [pdfViewUrlEnglish, setPdfViewUrlEnglish] = React.useState<
+    string | null
+  >(null);
+  const [pdfDownloadUrlEnglish, setPdfDownloadUrlEnglish] = React.useState<
+    string | null
+  >(null);
+  const [pdfViewUrlArabic, setPdfViewUrlArabic] = React.useState<string | null>(
     null
   );
+  const [pdfDownloadUrlArabic, setPdfDownloadUrlArabic] = React.useState<
+    string | null
+  >(null);
   const [propertyId, setPropertyId] = React.useState<string | null>(null);
 
   const {
@@ -90,8 +98,18 @@ export function PropertyForm({ onClose }: PropertyFormProps) {
 
       if (response.success) {
         setIsSuccess(true);
-        setPdfViewUrl(response.pdfViewUrl || response.pdfUrl || null);
-        setPdfDownloadUrl(response.pdfDownloadUrl || response.pdfUrl || null);
+        setPdfViewUrlEnglish(
+          response.pdfViewUrlEnglish || response.pdfUrlEnglish || null
+        );
+        setPdfDownloadUrlEnglish(
+          response.pdfDownloadUrlEnglish || response.pdfUrlEnglish || null
+        );
+        setPdfViewUrlArabic(
+          response.pdfViewUrlArabic || response.pdfUrlArabic || null
+        );
+        setPdfDownloadUrlArabic(
+          response.pdfDownloadUrlArabic || response.pdfUrlArabic || null
+        );
         setPropertyId(response.propertyId || null);
         toast.success(
           response.message || "Property listing created successfully!"
@@ -109,26 +127,33 @@ export function PropertyForm({ onClose }: PropertyFormProps) {
     }
   };
 
-  const handleDownloadPDF = () => {
-    if (!pdfDownloadUrl) return;
+  const handleDownloadPDF = (language: "english" | "arabic") => {
+    const url =
+      language === "english" ? pdfDownloadUrlEnglish : pdfDownloadUrlArabic;
+    if (!url) return;
 
     // Open the download URL directly - it will force download due to attachment disposition
-    window.open(pdfDownloadUrl, "_blank");
-    toast.success("PDF download started!");
+    window.open(url, "_blank");
+    toast.success(
+      `PDF download started (${language === "english" ? "English" : "Arabic"})!`
+    );
   };
 
-  const handleViewPDF = () => {
-    if (!pdfViewUrl) return;
+  const handleViewPDF = (language: "english" | "arabic") => {
+    const url = language === "english" ? pdfViewUrlEnglish : pdfViewUrlArabic;
+    if (!url) return;
 
     // Open the view URL in a new tab - it will display inline in browser
-    window.open(pdfViewUrl, "_blank");
+    window.open(url, "_blank");
   };
 
   const handleReset = () => {
     reset();
     resetFormState();
-    setPdfViewUrl(null);
-    setPdfDownloadUrl(null);
+    setPdfViewUrlEnglish(null);
+    setPdfDownloadUrlEnglish(null);
+    setPdfViewUrlArabic(null);
+    setPdfDownloadUrlArabic(null);
     setPropertyId(null);
   };
 
@@ -152,27 +177,80 @@ export function PropertyForm({ onClose }: PropertyFormProps) {
             </p>
           )}
         </div>
-        <div className="flex flex-col gap-3">
-          {(pdfViewUrl || pdfDownloadUrl) && (
-            <div className="flex gap-3 justify-center">
-              {pdfViewUrl && (
-                <Button
-                  onClick={handleViewPDF}
+        <div className="flex flex-col gap-4 w-full max-w-2xl">
+          {/* English Brochure */}
+          {(pdfViewUrlEnglish || pdfDownloadUrlEnglish) && (
+            <div className="border border-gray-200 rounded-lg p-4 bg-white">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-gray-900">
+                  English Brochure
+                </h3>
+                <Badge
                   variant="outline"
-                  className="gap-2"
+                  className="bg-blue-50 text-blue-700 border-blue-200"
                 >
-                  View PDF
-                </Button>
-              )}
-              {pdfDownloadUrl && (
-                <Button onClick={handleDownloadPDF} className="gap-2">
-                  <Download className="h-4 w-4" />
-                  Download PDF
-                </Button>
-              )}
+                  English
+                </Badge>
+              </div>
+              <div className="flex gap-3">
+                {pdfViewUrlEnglish && (
+                  <Button
+                    onClick={() => handleViewPDF("english")}
+                    variant="outline"
+                    className="flex-1 gap-2"
+                  >
+                    View PDF
+                  </Button>
+                )}
+                {pdfDownloadUrlEnglish && (
+                  <Button
+                    onClick={() => handleDownloadPDF("english")}
+                    className="flex-1 gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Download PDF
+                  </Button>
+                )}
+              </div>
             </div>
           )}
-          <div className="flex gap-3 justify-center">
+
+          {/* Arabic Brochure */}
+          {(pdfViewUrlArabic || pdfDownloadUrlArabic) && (
+            <div className="border border-gray-200 rounded-lg p-4 bg-white">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-gray-900">Arabic Brochure</h3>
+                <Badge
+                  variant="outline"
+                  className="bg-green-50 text-green-700 border-green-200"
+                >
+                  العربية
+                </Badge>
+              </div>
+              <div className="flex gap-3">
+                {pdfViewUrlArabic && (
+                  <Button
+                    onClick={() => handleViewPDF("arabic")}
+                    variant="outline"
+                    className="flex-1 gap-2"
+                  >
+                    View PDF
+                  </Button>
+                )}
+                {pdfDownloadUrlArabic && (
+                  <Button
+                    onClick={() => handleDownloadPDF("arabic")}
+                    className="flex-1 gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    Download PDF
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-3 justify-center pt-2">
             <Button onClick={handleReset} variant="outline">
               Create Another Listing
             </Button>
