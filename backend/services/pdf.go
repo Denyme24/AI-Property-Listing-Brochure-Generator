@@ -1,32 +1,32 @@
 package services
 
 import (
-    "bytes"
-    "fmt"
+	"bytes"
+	"fmt"
     "image"
     _ "image/jpeg"
     _ "image/png"
     "io"
-    "net/http"
+	"net/http"
     "os"
-    "property-brochure-backend/models"
-    "strings"
+	"property-brochure-backend/models"
+	"strings"
 
-    "github.com/jung-kurt/gofpdf"
+	"github.com/jung-kurt/gofpdf"
     "golang.org/x/text/encoding/charmap"
     "golang.org/x/text/transform"
 )
 
-// Color scheme constants
+
 const (
 	// Primary colors
-	darkBlueR, darkBlueG, darkBlueB = 31, 78, 121   // #1F4E79 - Headers
-	goldR, goldG, goldB             = 212, 175, 55  // #D4AF37 - Accents
+	darkBlueR, darkBlueG, darkBlueB = 31, 78, 121   
+	goldR, goldG, goldB             = 212, 175, 55  
 	
 	// Secondary colors
-	lightGrayR, lightGrayG, lightGrayB = 245, 245, 245 // #F5F5F5 - Backgrounds
-	darkGrayR, darkGrayG, darkGrayB    = 60, 60, 60    // #3C3C3C - Body text
-	mediumGrayR, mediumGrayG, mediumGrayB = 120, 120, 120 // #787878 - Secondary text
+	lightGrayR, lightGrayG, lightGrayB = 245, 245, 245 
+	darkGrayR, darkGrayG, darkGrayB    = 60, 60, 60    
+	mediumGrayR, mediumGrayG, mediumGrayB = 120, 120, 120 
 	
 	// Page dimensions
 	pageWidth  = 210.0
@@ -52,7 +52,7 @@ func NewPDFService() *PDFService {
 
 func (s *PDFService) GenerateBrochure(property *models.Property) ([]byte, error) {
 	pdf := gofpdf.New("P", "mm", "A4", "")
-	pdf.SetAutoPageBreak(false, 15) // Disable auto page break for better control
+	pdf.SetAutoPageBreak(false, 15) 
     s.setupFonts(pdf)
 	
 	// Page 1: Cover Page
@@ -74,6 +74,66 @@ func (s *PDFService) GenerateBrochure(property *models.Property) ([]byte, error)
 	err := pdf.Output(&buf)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate PDF: %w", err)
+	}
+
+	return buf.Bytes(), nil
+}
+
+// GenerateEnglishBrochure creates an English-only brochure
+func (s *PDFService) GenerateEnglishBrochure(property *models.Property) ([]byte, error) {
+	pdf := gofpdf.New("P", "mm", "A4", "")
+	pdf.SetAutoPageBreak(false, 15)
+	s.setupFonts(pdf)
+	
+	// Page 1: Cover Page
+	s.addCoverPage(pdf, property)
+	
+	// Page 2: Property Description & Details (English only)
+	s.addDetailsPage(pdf, property)
+	
+	// Page 3: Additional Images (if available)
+	if len(property.ImageURLs) > 1 {
+		s.addGalleryPage(pdf, property)
+	}
+	
+	// Page 4: Agent Contact Info (no Arabic section)
+	s.addContactPage(pdf, property)
+	
+	// Generate PDF bytes
+	var buf bytes.Buffer
+	err := pdf.Output(&buf)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate English PDF: %w", err)
+	}
+
+	return buf.Bytes(), nil
+}
+
+// GenerateArabicBrochure creates an Arabic-only brochure with RTL layout
+func (s *PDFService) GenerateArabicBrochure(property *models.Property) ([]byte, error) {
+	pdf := gofpdf.New("P", "mm", "A4", "")
+	pdf.SetAutoPageBreak(false, 15)
+	s.setupFonts(pdf)
+	
+	// Page 1: Cover Page (Arabic-focused)
+	s.addCoverPageArabic(pdf, property)
+	
+	// Page 2: Arabic Description & Details
+	s.addDetailsPageArabic(pdf, property)
+	
+	// Page 3: Additional Images (if available)
+	if len(property.ImageURLs) > 1 {
+		s.addGalleryPage(pdf, property)
+	}
+	
+	// Page 4: Agent Contact Info (Arabic labels)
+	s.addContactPageWithLanguage(pdf, property, true)
+	
+	// Generate PDF bytes
+	var buf bytes.Buffer
+	err := pdf.Output(&buf)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate Arabic PDF: %w", err)
 	}
 
 	return buf.Bytes(), nil
@@ -130,7 +190,7 @@ func (s *PDFService) addCoverPage(pdf *gofpdf.Fpdf, property *models.Property) {
 	priceText := s.formatPrice(property.Price, property.Currency)
 	pdf.CellFormat(contentWidth, 14, priceText, "", 1, "C", false, 0, "")
 	pdf.Ln(5)
-	
+
 	// Location (gray, medium size)
 	pdf.SetFont("Arial", "", 13)
 	pdf.SetTextColor(mediumGrayR, mediumGrayG, mediumGrayB)
@@ -153,8 +213,39 @@ func (s *PDFService) addDetailsPage(pdf *gofpdf.Fpdf, property *models.Property)
     s.addBrandingIfAvailable(pdf)
 	currentY := marginY + 10.0
 	
+	// Use localized content if available, fallback to legacy
+	var descLabel, highlightsLabel, amenitiesLabel string
+	var description string
+	var highlights []string
+	var amenities []string
+	
+	if property.EnglishContent.Description != "" {
+		// Use new localized content
+		descLabel = property.EnglishContent.PropertyDescriptionLabel
+		highlightsLabel = property.EnglishContent.KeyHighlightsLabel
+		amenitiesLabel = property.EnglishContent.AmenitiesLabel
+		description = property.EnglishContent.Description
+		highlights = property.EnglishContent.Highlights
+		amenities = property.EnglishContent.Amenities
+	} else {
+		// Fallback to legacy fields
+		descLabel = "Property Description"
+		highlightsLabel = "Key Highlights"
+		amenitiesLabel = "Amenities & Features"
+		description = property.AIContent.EnglishDescription
+		if description == "" {
+			description = property.Description
+		}
+		highlights = property.AIContent.KeyHighlights
+		amenities = property.Amenities
+	}
+	
+	if description == "" {
+		description = "No description available."
+	}
+	
 	// Section: Property Description
-	currentY = s.addSectionHeader(pdf, "Property Description", currentY)
+	currentY = s.addSectionHeader(pdf, descLabel, currentY)
 	
     if s.hasBodyFont {
         pdf.SetFont(s.bodyFontName, "", 11)
@@ -164,25 +255,17 @@ func (s *PDFService) addDetailsPage(pdf *gofpdf.Fpdf, property *models.Property)
 	pdf.SetTextColor(darkGrayR, darkGrayG, darkGrayB)
 	pdf.SetXY(marginX, currentY)
 	
-	description := property.AIContent.EnglishDescription
-	if description == "" {
-		description = property.Description
-	}
-	if description == "" {
-		description = "No description available."
-	}
-	
 	pdf.MultiCell(contentWidth, 5.5, description, "", "L", false)
 	currentY = pdf.GetY() + 8
 	
     // Section: Key Highlights
-	if len(property.AIContent.KeyHighlights) > 0 {
-		currentY = s.addSectionHeader(pdf, "Key Highlights", currentY)
-		
+	if len(highlights) > 0 {
+		currentY = s.addSectionHeader(pdf, highlightsLabel, currentY)
+
 		pdf.SetFont("Arial", "", 11)
 		pdf.SetTextColor(darkGrayR, darkGrayG, darkGrayB)
 		
-        for _, raw := range property.AIContent.KeyHighlights {
+        for _, raw := range highlights {
             highlight := s.sanitizeBulletText(raw)
             // Draw a gold bullet (filled circle) to avoid Unicode bullet issues
             bulletX := marginX + 5
@@ -201,14 +284,14 @@ func (s *PDFService) addDetailsPage(pdf *gofpdf.Fpdf, property *models.Property)
 	}
 	
 	// Section: Amenities
-	if len(property.Amenities) > 0 {
+	if len(amenities) > 0 {
 		// Check if we need a new page
 		if currentY > 220 {
 			pdf.AddPage()
 			currentY = marginY + 10
 		}
 		
-		currentY = s.addSectionHeader(pdf, "Amenities & Features", currentY)
+		currentY = s.addSectionHeader(pdf, amenitiesLabel, currentY)
 		
 		pdf.SetFont("Arial", "", 10)
 		pdf.SetTextColor(darkGrayR, darkGrayG, darkGrayB)
@@ -217,7 +300,7 @@ func (s *PDFService) addDetailsPage(pdf *gofpdf.Fpdf, property *models.Property)
 		colWidth := (contentWidth - 10) / 2
 		amenityHeight := 7.0
 		
-        for i, amenity := range property.Amenities {
+        for i, amenity := range amenities {
 			col := i % 2
 			xPos := marginX + float64(col)*(colWidth+10)
 			
@@ -248,7 +331,7 @@ func (s *PDFService) addDetailsPage(pdf *gofpdf.Fpdf, property *models.Property)
 		}
 		
 		// Handle odd number of amenities
-		if len(property.Amenities)%2 == 1 {
+		if len(amenities)%2 == 1 {
 			currentY += amenityHeight
 		}
 	}
@@ -259,19 +342,25 @@ func (s *PDFService) addDetailsPage(pdf *gofpdf.Fpdf, property *models.Property)
 
 // addGalleryPage creates an image gallery for additional property photos
 func (s *PDFService) addGalleryPage(pdf *gofpdf.Fpdf, property *models.Property) {
-	pdf.AddPage()
+		pdf.AddPage()
     s.addBrandingIfAvailable(pdf)
 	currentY := marginY + 10.0
 	
+	// Use localized label if available
+	galleryLabel := "Property Gallery"
+	if property.EnglishContent.PropertyGalleryLabel != "" {
+		galleryLabel = property.EnglishContent.PropertyGalleryLabel
+	}
+	
 	// Section header
-	currentY = s.addSectionHeader(pdf, "Property Gallery", currentY)
+	currentY = s.addSectionHeader(pdf, galleryLabel, currentY)
 	currentY += 5
 	
 	// Display up to 4 additional images in a 2x2 grid
 	imgWidth := (contentWidth - 10) / 2
 	imgHeight := imgWidth * 0.75 // 4:3 aspect ratio
-	spacing := 10.0
-	
+		spacing := 10.0
+
 	imageCount := 0
 	maxImages := 4
 	
@@ -349,8 +438,13 @@ func (s *PDFService) addArabicAndContactPage(pdf *gofpdf.Fpdf, property *models.
 	s.addPageNumber(pdf, pageNum)
 }
 
-// addAgentContactCard creates a professional contact card for the agent
+// addAgentContactCard creates a professional contact card for the agent (English)
 func (s *PDFService) addAgentContactCard(pdf *gofpdf.Fpdf, property *models.Property, startY float64) {
+	s.addAgentContactCardLocalized(pdf, property, startY, false)
+}
+
+// addAgentContactCardLocalized creates a professional contact card with optional Arabic labels
+func (s *PDFService) addAgentContactCardLocalized(pdf *gofpdf.Fpdf, property *models.Property, startY float64, useArabic bool) {
 	cardHeight := 55.0
 	cardY := pageHeight - marginY - cardHeight - 20
 	
@@ -363,11 +457,41 @@ func (s *PDFService) addAgentContactCard(pdf *gofpdf.Fpdf, property *models.Prop
 	pdf.SetLineWidth(0.8)
 	pdf.Rect(marginX, cardY, contentWidth, cardHeight, "D")
 	
+	// Determine labels based on language
+	var agentLabel, nameLabel, emailLabel, phoneLabel string
+	var align string
+	
+	if useArabic && property.ArabicContent.AgentLabel != "" {
+		agentLabel = property.ArabicContent.AgentLabel
+		nameLabel = "الاسم:"
+		emailLabel = "البريد الإلكتروني:"
+		phoneLabel = "الهاتف:"
+		align = "R"
+	} else if !useArabic && property.EnglishContent.AgentLabel != "" {
+		agentLabel = property.EnglishContent.AgentLabel
+		nameLabel = "Name:"
+		emailLabel = "Email:"
+		phoneLabel = "Phone:"
+		align = "C"
+	} else {
+		// Fallback to English
+		agentLabel = "Contact Your Agent"
+		nameLabel = "Name:"
+		emailLabel = "Email:"
+		phoneLabel = "Phone:"
+		align = "C"
+	}
+	
 	// "Contact Agent" header
 	pdf.SetXY(marginX+5, cardY+5)
-	pdf.SetFont("Arial", "B", 14)
+	if useArabic && s.hasArabicFont {
+		pdf.SetFont(s.arabicFontName, "", 14)
+	} else {
+		pdf.SetFont("Arial", "B", 14)
+	}
 	pdf.SetTextColor(darkBlueR, darkBlueG, darkBlueB)
-	pdf.CellFormat(contentWidth-10, 8, "Contact Your Agent", "", 1, "C", false, 0, "")
+	agentLabel = s.fixMojibakeLatin1ToUTF8(agentLabel)
+	pdf.CellFormat(contentWidth-10, 8, agentLabel, "", 1, align, false, 0, "")
 	
 	// Divider line
 	pdf.SetDrawColor(goldR, goldG, goldB)
@@ -375,28 +499,46 @@ func (s *PDFService) addAgentContactCard(pdf *gofpdf.Fpdf, property *models.Prop
 	pdf.Line(marginX+30, cardY+13, pageWidth-marginX-30, cardY+13)
 	
 	// Agent info
-	pdf.SetFont("Arial", "B", 11)
+	if useArabic && s.hasArabicFont {
+		pdf.SetFont(s.arabicFontName, "", 11)
+	} else {
+		pdf.SetFont("Arial", "B", 11)
+	}
 	pdf.SetTextColor(darkGrayR, darkGrayG, darkGrayB)
 	pdf.SetXY(marginX+10, cardY+18)
-	pdf.CellFormat(25, 6, "Name:", "", 0, "", false, 0, "")
-            if s.hasBodyFont {
-                pdf.SetFont(s.bodyFontName, "", 11)
-            } else {
-                pdf.SetFont("Arial", "", 11)
-            }
+	nameLabel = s.fixMojibakeLatin1ToUTF8(nameLabel)
+	pdf.CellFormat(50, 6, nameLabel, "", 0, "", false, 0, "")
+	
+	if s.hasBodyFont && !useArabic {
+		pdf.SetFont(s.bodyFontName, "", 11)
+	} else if useArabic && s.hasArabicFont {
+		pdf.SetFont(s.arabicFontName, "", 11)
+	} else {
+		pdf.SetFont("Arial", "", 11)
+	}
 	pdf.CellFormat(0, 6, property.AgentInfo.Name, "", 0, "", false, 0, "")
 	
-	pdf.SetFont("Arial", "B", 11)
+	if useArabic && s.hasArabicFont {
+		pdf.SetFont(s.arabicFontName, "", 11)
+	} else {
+		pdf.SetFont("Arial", "B", 11)
+	}
 	pdf.SetXY(marginX+10, cardY+28)
-	pdf.CellFormat(25, 6, "Email:", "", 0, "", false, 0, "")
+	emailLabel = s.fixMojibakeLatin1ToUTF8(emailLabel)
+	pdf.CellFormat(50, 6, emailLabel, "", 0, "", false, 0, "")
 	pdf.SetFont("Arial", "", 11)
 	pdf.SetTextColor(darkBlueR, darkBlueG, darkBlueB)
 	pdf.CellFormat(0, 6, property.AgentInfo.Email, "", 0, "", false, 0, "")
 	
-	pdf.SetFont("Arial", "B", 11)
+	if useArabic && s.hasArabicFont {
+		pdf.SetFont(s.arabicFontName, "", 11)
+	} else {
+		pdf.SetFont("Arial", "B", 11)
+	}
 	pdf.SetTextColor(darkGrayR, darkGrayG, darkGrayB)
 	pdf.SetXY(marginX+10, cardY+38)
-	pdf.CellFormat(25, 6, "Phone:", "", 0, "", false, 0, "")
+	phoneLabel = s.fixMojibakeLatin1ToUTF8(phoneLabel)
+	pdf.CellFormat(50, 6, phoneLabel, "", 0, "", false, 0, "")
 	pdf.SetFont("Arial", "", 11)
 	pdf.SetTextColor(goldR, goldG, goldB)
 	pdf.CellFormat(0, 6, property.AgentInfo.Phone, "", 0, "", false, 0, "")
@@ -594,16 +736,16 @@ func (s *PDFService) fixMojibakeLatin1ToUTF8(text string) string {
 }
 
 func (s *PDFService) addImageFromURL(pdf *gofpdf.Fpdf, url string, x, y, w, h float64) error {
-    // Download image
-    resp, err := http.Get(url)
-    if err != nil {
-        return err
-    }
-    defer resp.Body.Close()
+	// Download image
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
 
-    if resp.StatusCode != http.StatusOK {
-        return fmt.Errorf("failed to download image: status %d", resp.StatusCode)
-    }
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to download image: status %d", resp.StatusCode)
+	}
 
     // Read the body into memory so we can decode dimensions and also register with gofpdf
     var imgBuf bytes.Buffer
@@ -611,14 +753,14 @@ func (s *PDFService) addImageFromURL(pdf *gofpdf.Fpdf, url string, x, y, w, h fl
         return err
     }
 
-    // Determine image type from content type
-    imageType := "jpg"
-    contentType := resp.Header.Get("Content-Type")
-    if strings.Contains(contentType, "png") {
-        imageType = "png"
-    } else if strings.Contains(contentType, "jpeg") || strings.Contains(contentType, "jpg") {
-        imageType = "jpg"
-    }
+	// Determine image type from content type
+	imageType := "jpg"
+	contentType := resp.Header.Get("Content-Type")
+	if strings.Contains(contentType, "png") {
+		imageType = "png"
+	} else if strings.Contains(contentType, "jpeg") || strings.Contains(contentType, "jpg") {
+		imageType = "jpg"
+	}
 
     // Decode to get intrinsic dimensions
     imgReader := bytes.NewReader(imgBuf.Bytes())
@@ -647,22 +789,282 @@ func (s *PDFService) addImageFromURL(pdf *gofpdf.Fpdf, url string, x, y, w, h fl
         imgReader = bytes.NewReader(imgBuf.Bytes())
     }
 
-    // Create unique name for this image
-    urlSuffix := url
-    if len(url) > 20 {
-        urlSuffix = url[len(url)-20:]
-    }
-    uniqueName := fmt.Sprintf("img_%s_%.0f_%.0f", urlSuffix, x, y)
+	// Create unique name for this image
+	urlSuffix := url
+	if len(url) > 20 {
+		urlSuffix = url[len(url)-20:]
+	}
+	uniqueName := fmt.Sprintf("img_%s_%.0f_%.0f", urlSuffix, x, y)
 
-    // Register and add image to PDF using ImageOptions
-    opts := gofpdf.ImageOptions{
-        ImageType:             imageType,
-        ReadDpi:               false,
-        AllowNegativePosition: false,
-    }
+	// Register and add image to PDF using ImageOptions
+	opts := gofpdf.ImageOptions{
+		ImageType:             imageType,
+		ReadDpi:               false,
+		AllowNegativePosition: false,
+	}
     pdf.RegisterImageOptionsReader(uniqueName, opts, imgReader)
-    pdf.ImageOptions(uniqueName, x, y, w, h, false, opts, 0, "")
+	pdf.ImageOptions(uniqueName, x, y, w, h, false, opts, 0, "")
 
-    return nil
+	return nil
+}
+
+// addContactPage creates a standalone contact page (without Arabic description)
+func (s *PDFService) addContactPage(pdf *gofpdf.Fpdf, property *models.Property) {
+	s.addContactPageWithLanguage(pdf, property, false)
+}
+
+// addContactPageWithLanguage creates a standalone contact page with language support
+func (s *PDFService) addContactPageWithLanguage(pdf *gofpdf.Fpdf, property *models.Property, useArabic bool) {
+	pdf.AddPage()
+	s.addBrandingIfAvailable(pdf)
+	
+	// Add agent contact card centered on page
+	s.addAgentContactCardLocalized(pdf, property, pageHeight/2, useArabic)
+	
+	// Add page number
+	pageNum := 4
+	if len(property.ImageURLs) <= 1 {
+		pageNum = 3
+	}
+	s.addPageNumber(pdf, pageNum)
+}
+
+// addCoverPageArabic creates an Arabic-focused cover page
+func (s *PDFService) addCoverPageArabic(pdf *gofpdf.Fpdf, property *models.Property) {
+	pdf.AddPage()
+	s.addBrandingIfAvailable(pdf)
+	
+	// Add gold accent bar at top
+	pdf.SetFillColor(goldR, goldG, goldB)
+	pdf.Rect(0, 0, pageWidth, 8, "F")
+	
+	// Add main property image (large, full-width)
+	imageHeight := 160.0
+	if len(property.ImageURLs) > 0 {
+		err := s.addImageFromURL(pdf, property.ImageURLs[0], marginX, 20, contentWidth, imageHeight)
+		if err != nil {
+			pdf.SetFillColor(lightGrayR, lightGrayG, lightGrayB)
+			pdf.Rect(marginX, 20, contentWidth, imageHeight, "F")
+			pdf.SetFont("Arial", "I", 12)
+			pdf.SetTextColor(mediumGrayR, mediumGrayG, mediumGrayB)
+			pdf.SetXY(marginX, 20+imageHeight/2)
+			pdf.CellFormat(contentWidth, 10, "Image Not Available", "", 0, "C", false, 0, "")
+		}
+	} else {
+		pdf.SetFillColor(lightGrayR, lightGrayG, lightGrayB)
+		pdf.Rect(marginX, 20, contentWidth, imageHeight, "F")
+		pdf.SetFont("Arial", "I", 12)
+		pdf.SetTextColor(mediumGrayR, mediumGrayG, mediumGrayB)
+		pdf.SetXY(marginX, 20+imageHeight/2)
+		pdf.CellFormat(contentWidth, 10, "No Image Available", "", 0, "C", false, 0, "")
+	}
+	
+	// Property Title (Use Arabic localized title if available)
+	pdf.SetY(190)
+	if s.hasArabicFont {
+		pdf.SetFont(s.arabicFontName, "", 24)
+	} else {
+		pdf.SetFont("Arial", "B", 26)
+	}
+	pdf.SetTextColor(darkBlueR, darkBlueG, darkBlueB)
+	
+	// Use localized Arabic title if available, otherwise fallback to English title
+	title := property.Title
+	if property.ArabicContent.Title != "" {
+		title = property.ArabicContent.Title
+		title = s.fixMojibakeLatin1ToUTF8(title)
+	}
+	
+	titleLines := pdf.SplitLines([]byte(title), contentWidth)
+	for _, line := range titleLines {
+		pdf.CellFormat(contentWidth, 12, string(line), "", 1, "C", false, 0, "")
+	}
+	pdf.Ln(3)
+	
+	// Price (prominent, gold color)
+	pdf.SetFont("Arial", "B", 28)
+	pdf.SetTextColor(goldR, goldG, goldB)
+	priceText := s.formatPrice(property.Price, property.Currency)
+	pdf.CellFormat(contentWidth, 14, priceText, "", 1, "C", false, 0, "")
+	pdf.Ln(5)
+	
+	// Location (gray, medium size)
+	pdf.SetFont("Arial", "", 13)
+	pdf.SetTextColor(mediumGrayR, mediumGrayG, mediumGrayB)
+	locationText := s.formatLocation(property)
+	pdf.MultiCell(contentWidth, 6, locationText, "", "C", false)
+	
+	// Decorative bottom line
+	pdf.SetY(270)
+	pdf.SetDrawColor(goldR, goldG, goldB)
+	pdf.SetLineWidth(0.5)
+	pdf.Line(marginX+50, 270, pageWidth-marginX-50, 270)
+	
+	s.addPageNumber(pdf, 1)
+}
+
+// addDetailsPageArabic creates Arabic description and details page
+func (s *PDFService) addDetailsPageArabic(pdf *gofpdf.Fpdf, property *models.Property) {
+	pdf.AddPage()
+	s.addBrandingIfAvailable(pdf)
+	currentY := marginY + 10.0
+	
+	// Use localized content if available, fallback to legacy
+	var descLabel, highlightsLabel, amenitiesLabel string
+	var description string
+	var highlights []string
+	var amenities []string
+	
+	if property.ArabicContent.Description != "" {
+		// Use new localized content
+		descLabel = property.ArabicContent.PropertyDescriptionLabel
+		highlightsLabel = property.ArabicContent.KeyHighlightsLabel
+		amenitiesLabel = property.ArabicContent.AmenitiesLabel
+		description = property.ArabicContent.Description
+		highlights = property.ArabicContent.Highlights
+		amenities = property.ArabicContent.Amenities
+	} else {
+		// Fallback to legacy fields
+		descLabel = "وصف العقار"
+		highlightsLabel = "المميزات الرئيسية"
+		amenitiesLabel = "المرافق والميزات"
+		description = property.AIContent.ArabicDescription
+		highlights = []string{} // Legacy didn't have Arabic highlights
+		amenities = property.Amenities
+	}
+	
+	if description == "" {
+		description = "لا يوجد وصف متاح"
+	}
+	
+	// Section: Arabic Description
+	if s.hasArabicFont {
+		currentY = s.addSectionHeaderAligned(pdf, descLabel, currentY, s.arabicFontName, "R")
+	} else {
+		currentY = s.addSectionHeader(pdf, descLabel, currentY)
+	}
+	
+	// Use Arabic font if available
+	if s.hasArabicFont {
+		pdf.SetFont(s.arabicFontName, "", 12)
+	} else {
+		pdf.SetFont("Arial", "", 11)
+	}
+	pdf.SetTextColor(darkGrayR, darkGrayG, darkGrayB)
+	pdf.SetXY(marginX, currentY)
+	
+	// Right-aligned for Arabic text
+	description = s.fixMojibakeLatin1ToUTF8(description)
+	pdf.MultiCell(contentWidth, 6, description, "", "R", false)
+	currentY = pdf.GetY() + 8
+	
+	// Section: Key Highlights (Arabic)
+	if len(highlights) > 0 {
+		if currentY > 220 {
+			pdf.AddPage()
+			s.addBrandingIfAvailable(pdf)
+			currentY = marginY + 10
+		}
+		
+		if s.hasArabicFont {
+			currentY = s.addSectionHeaderAligned(pdf, highlightsLabel, currentY, s.arabicFontName, "R")
+		} else {
+			currentY = s.addSectionHeader(pdf, highlightsLabel, currentY)
+		}
+		
+		if s.hasArabicFont {
+			pdf.SetFont(s.arabicFontName, "", 11)
+		} else {
+			pdf.SetFont("Arial", "", 11)
+		}
+		pdf.SetTextColor(darkGrayR, darkGrayG, darkGrayB)
+		
+		for _, raw := range highlights {
+			highlight := s.sanitizeBulletText(raw)
+			highlight = s.fixMojibakeLatin1ToUTF8(highlight)
+			
+			// Draw a gold bullet (filled circle)
+			bulletX := pageWidth - marginX - 5 // Right side for RTL
+			bulletY := currentY + 3.5
+			pdf.SetFillColor(goldR, goldG, goldB)
+			pdf.Circle(bulletX, bulletY, 1.6, "F")
+			
+			// Highlight text (right-aligned)
+			pdf.SetTextColor(darkGrayR, darkGrayG, darkGrayB)
+			if s.hasArabicFont {
+				pdf.SetFont(s.arabicFontName, "", 11)
+			} else {
+				pdf.SetFont("Arial", "", 11)
+			}
+			pdf.SetXY(marginX, currentY)
+			pdf.MultiCell(contentWidth-12, 6, highlight, "", "R", false)
+			currentY = pdf.GetY() + 1
+		}
+		currentY += 6
+	}
+	
+	// Section: Amenities (if available)
+	if len(amenities) > 0 {
+		if currentY > 220 {
+			pdf.AddPage()
+			s.addBrandingIfAvailable(pdf)
+			currentY = marginY + 10
+		}
+		
+		if s.hasArabicFont {
+			currentY = s.addSectionHeaderAligned(pdf, amenitiesLabel, currentY, s.arabicFontName, "R")
+		} else {
+			currentY = s.addSectionHeader(pdf, amenitiesLabel, currentY)
+		}
+		
+		if s.hasArabicFont {
+			pdf.SetFont(s.arabicFontName, "", 10)
+		} else {
+			pdf.SetFont("Arial", "", 10)
+		}
+		pdf.SetTextColor(darkGrayR, darkGrayG, darkGrayB)
+		
+		// Display amenities in a 2-column grid with checkmarks
+		colWidth := (contentWidth - 10) / 2
+		amenityHeight := 7.0
+		
+		for i, amenity := range amenities {
+			col := i % 2
+			xPos := marginX + float64(col)*(colWidth+10)
+			
+			pdf.SetXY(xPos, currentY)
+			
+			// Draw a green check mark using vector lines
+			pdf.SetDrawColor(46, 125, 50)
+			pdf.SetLineWidth(0.8)
+			startX := xPos
+			startY := currentY + amenityHeight/2
+			pdf.Line(startX, startY, startX+2.0, startY+2.0)
+			pdf.Line(startX+2.0, startY+2.0, startX+6.0, startY-1.0)
+			
+			// Amenity text (apply mojibake fix for Arabic)
+			amenity = s.fixMojibakeLatin1ToUTF8(amenity)
+			pdf.SetTextColor(darkGrayR, darkGrayG, darkGrayB)
+			if s.hasArabicFont {
+				pdf.SetFont(s.arabicFontName, "", 10)
+			} else {
+				pdf.SetFont("Arial", "", 10)
+			}
+			pdf.SetX(xPos + 9)
+			pdf.CellFormat(colWidth-7, amenityHeight, amenity, "", 0, "", false, 0, "")
+			
+			// Move to next row after 2 columns
+			if col == 1 {
+				currentY += amenityHeight
+			}
+		}
+		
+		// Handle odd number of amenities
+		if len(amenities)%2 == 1 {
+			currentY += amenityHeight
+		}
+	}
+	
+	s.addPageNumber(pdf, 2)
 }
 
