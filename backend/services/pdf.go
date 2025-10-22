@@ -603,30 +603,31 @@ func (s *PDFService) addPageNumber(pdf *gofpdf.Fpdf, pageNum int) {
 
 // setupFonts attempts to load optional Unicode fonts for better internationalization
 func (s *PDFService) setupFonts(pdf *gofpdf.Fpdf) {
-    // Optional: allow specifying a TTF for Arabic via env var
-    if fontPath := os.Getenv("ARABIC_TTF_PATH"); fontPath != "" {
-        if _, err := os.Stat(fontPath); err == nil {
-            pdf.AddUTF8Font("ArabicFont", "", fontPath)
-            s.arabicFontName = "ArabicFont"
-            s.hasArabicFont = true
-            fmt.Println("[PDF] Loaded Arabic UTF-8 font:", fontPath)
-        } else {
-            fmt.Println("[PDF] ARABIC_TTF_PATH not found:", fontPath, "err:", err)
-        }
+    // Force override: Use hardcoded paths from project fonts folder
+    fontPath := "fonts/NotoNaskhArabic-Regular.ttf"
+    
+    fmt.Println("[PDF DEBUG] Using Arabic font path:", fontPath)
+    
+    if _, err := os.Stat(fontPath); err == nil {
+        pdf.AddUTF8Font("ArabicFont", "", fontPath)
+        s.arabicFontName = "ArabicFont"
+        s.hasArabicFont = true
+        fmt.Println("[PDF] Loaded Arabic UTF-8 font:", fontPath)
     } else {
-        fmt.Println("[PDF] ARABIC_TTF_PATH not set; Arabic text may render incorrectly.")
+        fmt.Println("[PDF] ARABIC_TTF_PATH not found:", fontPath, "err:", err)
     }
 
-    // Optional: general body font for all content (Unicode)
-    if bodyPath := os.Getenv("BODY_TTF_PATH"); bodyPath != "" {
-        if _, err := os.Stat(bodyPath); err == nil {
-            pdf.AddUTF8Font("BodyFont", "", bodyPath)
-            s.bodyFontName = "BodyFont"
-            s.hasBodyFont = true
-            fmt.Println("[PDF] Loaded Body UTF-8 font:", bodyPath)
-        } else {
-            fmt.Println("[PDF] BODY_TTF_PATH not found:", bodyPath, "err:", err)
-        }
+    // Force override: Use hardcoded paths from project fonts folder
+    bodyPath := "fonts/Roboto-Regular.ttf"
+    fmt.Println("[PDF DEBUG] Using body font path:", bodyPath)
+    
+    if _, err := os.Stat(bodyPath); err == nil {
+        pdf.AddUTF8Font("BodyFont", "", bodyPath)
+        s.bodyFontName = "BodyFont"
+        s.hasBodyFont = true
+        fmt.Println("[PDF] Loaded Body UTF-8 font:", bodyPath)
+    } else {
+        fmt.Println("[PDF] BODY_TTF_PATH not found:", bodyPath, "err:", err)
     }
 
     // Fallback: if body font not set but Arabic font exists, use Arabic font for body too
