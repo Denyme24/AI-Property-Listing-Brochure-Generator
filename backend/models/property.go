@@ -53,6 +53,9 @@ type LocalizedContent struct {
 	PropertyDescriptionLabel  string   `bson:"propertyDescriptionLabel" json:"propertyDescriptionLabel"`
 	KeyHighlightsLabel        string   `bson:"keyHighlightsLabel" json:"keyHighlightsLabel"`
 	PropertyGalleryLabel      string   `bson:"propertyGalleryLabel" json:"propertyGalleryLabel"`
+	AdditionalSectionTitle    string   `bson:"additionalSectionTitle" json:"additionalSectionTitle"`
+	AdditionalSectionContent  string   `bson:"additionalSectionContent" json:"additionalSectionContent"`
+	ThankYouMessage           string   `bson:"thankYouMessage" json:"thankYouMessage"`
 }
 
 // AIContent represents AI-generated content for the property (Legacy compatibility)
