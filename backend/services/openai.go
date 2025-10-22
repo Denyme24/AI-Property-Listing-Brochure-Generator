@@ -39,6 +39,9 @@ type LocalizedContentData struct {
 	PropertyDescriptionLabel string   `json:"propertyDescriptionLabel"`
 	KeyHighlightsLabel       string   `json:"keyHighlightsLabel"`
 	PropertyGalleryLabel     string   `json:"propertyGalleryLabel"`
+	AdditionalSectionTitle   string   `json:"additionalSectionTitle"`
+	AdditionalSectionContent string   `json:"additionalSectionContent"`
+	ThankYouMessage          string   `json:"thankYouMessage"`
 }
 
 func NewOpenAIService(apiKey string) *OpenAIService {
@@ -191,7 +194,10 @@ Please generate a JSON response with the following structure:
     "agentLabel": "Contact Your Agent",
     "propertyDescriptionLabel": "Property Description",
     "keyHighlightsLabel": "Key Highlights",
-    "propertyGalleryLabel": "Property Gallery"
+    "propertyGalleryLabel": "Property Gallery",
+    "additionalSectionTitle": "<creative section title like 'Investment Opportunity' or 'Why This Property?'>",
+    "additionalSectionContent": "<3-6 concise, impactful lines written as if a professional real estate agent is speaking directly to a buyer. Focus on: prime location value, growth potential, and unique selling points. Write in first-person, conversational tone. Keep it brief but powerful - like an elevator pitch from an experienced agent.>",
+    "thankYouMessage": "<warm 2-3 paragraph thank you message expressing gratitude for interest and encouraging next steps>"
   },
   "arabicContent": {
     "title": "<property title fully translated to Arabic>",
@@ -207,7 +213,10 @@ Please generate a JSON response with the following structure:
     "agentLabel": "اتصل بوكيلك",
     "propertyDescriptionLabel": "وصف العقار",
     "keyHighlightsLabel": "المميزات الرئيسية",
-    "propertyGalleryLabel": "معرض العقار"
+    "propertyGalleryLabel": "معرض العقار",
+    "additionalSectionTitle": "<creative section title in Arabic like 'فرصة استثمارية' or 'لماذا هذا العقار؟'>",
+    "additionalSectionContent": "<3-6 concise, impactful lines in Arabic as if a professional real estate agent is speaking directly to a buyer. Focus on: prime location value, growth potential, and unique selling points. Write in first-person, conversational tone. Keep it brief but powerful.>",
+    "thankYouMessage": "<warm 2-3 paragraph thank you message in Arabic expressing gratitude and encouraging next steps>"
   }
 }
 
@@ -289,6 +298,15 @@ Generate the content now:`,
 	if result.EnglishContent.PropertyGalleryLabel == "" {
 		result.EnglishContent.PropertyGalleryLabel = "Property Gallery"
 	}
+	if result.EnglishContent.AdditionalSectionTitle == "" {
+		result.EnglishContent.AdditionalSectionTitle = "Investment Opportunity"
+	}
+	if result.EnglishContent.AdditionalSectionContent == "" {
+		result.EnglishContent.AdditionalSectionContent = "I've been selling properties in this area for years, and I can tell you - this is a rare find. The location commands premium value, and we're seeing consistent appreciation year after year. What really excites me is the potential here, both for investors seeking solid returns and families looking for their dream home. The market fundamentals are strong, demand is high, and properties like this don't stay available for long. Trust me, at this price point and in this neighborhood, you're looking at an opportunity that ticks all the boxes."
+	}
+	if result.EnglishContent.ThankYouMessage == "" {
+		result.EnglishContent.ThankYouMessage = "Thank you for considering this exceptional property. We appreciate your interest and would be delighted to provide you with additional information or arrange a viewing at your convenience. Please don't hesitate to reach out to our dedicated agent for any questions or to schedule a visit."
+	}
 	
 	// Arabic fallbacks
 	if result.ArabicContent.Title == "" {
@@ -323,6 +341,15 @@ Generate the content now:`,
 	}
 	if result.ArabicContent.PropertyGalleryLabel == "" {
 		result.ArabicContent.PropertyGalleryLabel = "معرض العقار"
+	}
+	if result.ArabicContent.AdditionalSectionTitle == "" {
+		result.ArabicContent.AdditionalSectionTitle = "فرصة استثمارية"
+	}
+	if result.ArabicContent.AdditionalSectionContent == "" {
+		result.ArabicContent.AdditionalSectionContent = "أعمل في بيع العقارات في هذه المنطقة منذ سنوات، وأستطيع أن أخبرك - هذا اكتشاف نادر. الموقع يتمتع بقيمة متميزة، ونحن نشهد ارتفاعًا مستمرًا في الأسعار عامًا بعد عام. ما يثير حماسي حقًا هو الإمكانات الهائلة هنا، سواء للمستثمرين الباحثين عن عوائد قوية أو العائلات الباحثة عن منزل أحلامهم. أساسيات السوق قوية، والطلب مرتفع، والعقارات مثل هذا لا تبقى متاحة لفترة طويلة. ثق بي، بهذا السعر وفي هذا الحي، أنت تنظر إلى فرصة تحقق جميع المعايير."
+	}
+	if result.ArabicContent.ThankYouMessage == "" {
+		result.ArabicContent.ThankYouMessage = "نشكركم على اهتمامكم بهذا العقار الاستثنائي. نحن نقدر اهتمامكم ويسعدنا تزويدكم بمعلومات إضافية أو ترتيب موعد للمعاينة في الوقت المناسب لكم. لا تترددوا في التواصل مع وكيلنا المختص لأية استفسارات أو لتحديد موعد للزيارة."
 	}
 
 	return &result, nil
