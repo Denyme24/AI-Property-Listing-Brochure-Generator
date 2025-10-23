@@ -25,7 +25,7 @@ An intelligent property listing brochure generator that leverages AI to create p
 ### Backend
 - **Language**: Go 1.21
 - **Web Framework**: Fiber v2
-- **Database**: MongoDB
+- **Database**: MongoDB Atlas
 - **AI Integration**: OpenAI API (GPT models)
 - **Cloud Storage**: AWS S3
 - **PDF Generation**: gofpdf
