@@ -1,0 +1,29 @@
+# Git
+.git
+.gitignore
+
+# Air (hot reload)
+.air.toml
+tmp/
+
+# Environment files
+.env
+.env.local
+
+# IDE
+.vscode
+.idea
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/

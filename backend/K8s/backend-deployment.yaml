@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: property-brochure-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: property-brochure-backend
+  template:
+    metadata:
+      labels:
+        app: property-brochure-backend
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: backend
+          image: 677276119247.dkr.ecr.ap-south-1.amazonaws.com/hayyai/backend:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: backend-env
