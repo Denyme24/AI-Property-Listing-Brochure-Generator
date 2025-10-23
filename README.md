@@ -1,11 +1,11 @@
 # AI Property Listing Brochure Generator
 
-An intelligent property listing brochure generator that leverages AI to create professional, customized property brochures in PDF format. The application uses OpenAI's GPT models to generate compelling property descriptions and generates beautifully formatted PDF brochures.
+An intelligent property listing brochure generator that leverages AI to create professional, customized property brochures in PDF format. The application uses OpenAI's GPT models to generate compelling property descriptions and generates beautifully formatted PDF brochures in both English and Arabic languages.
 
 ## Features
 
-- **AI-Powered Content Generation**: Automatically generates engaging property descriptions using OpenAI GPT
-- **Professional PDF Brochures**: Creates high-quality, professionally formatted PDF brochures with images
+- **AI-Powered Content Generation**: Automatically generates engaging property descriptions using OpenAI GPT in both English and Arabic
+- **Professional PDF Brochures**: Creates high-quality, professionally formatted PDF brochures with images in both English and Arabic languages
 - **Cloud Storage**: Automatically uploads generated brochures and images to AWS S3
 - **Modern UI**: Responsive web interface built with Next.js and React
 - **Scalable Architecture**: Containerized application deployed on Kubernetes
