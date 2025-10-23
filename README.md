@@ -9,6 +9,7 @@ An intelligent property listing brochure generator that leverages AI to create p
 - **Cloud Storage**: Automatically uploads generated brochures and images to AWS S3
 - **Modern UI**: Responsive web interface built with Next.js and React
 - **Scalable Architecture**: Containerized application deployed on Kubernetes
+- **Comprehensive Monitoring**: Real-time metrics, dashboards, and alerting with Prometheus, Grafana, and Slack integration
 
 ## Technology Stack
 
@@ -38,6 +39,12 @@ An intelligent property listing brochure generator that leverages AI to create p
 - **Cloud Provider**: AWS
 - **Region**: eu-north-1
 
+### Monitoring & Observability
+- **Metrics Collection**: Prometheus
+- **Visualization**: Grafana
+- **Alerting**: Alertmanager with Slack integration
+- **Monitoring Stack**: Prometheus Operator (kube-prometheus-stack)
+
 ### CI/CD
 - **Platform**: GitHub Actions
 - **Workflow**: Automated build and deployment on backend changes
@@ -48,13 +55,17 @@ An intelligent property listing brochure generator that leverages AI to create p
 
 ## Architecture
 
-The application follows a modern microservices architecture:
+The application follows a modern microservices architecture with integrated monitoring:
 
 ```
 Frontend (Next.js) → Backend API (Go/Fiber) → Services
                                               ├── MongoDB (Property Data)
                                               ├── OpenAI (Content Generation)
                                               └── AWS S3 (PDF Storage)
+                          ↓
+                    Prometheus (Metrics) → Grafana (Dashboards)
+                          ↓
+                    Alertmanager → Slack Notifications
 ```
 
 ## Prerequisites
@@ -74,6 +85,7 @@ Frontend (Next.js) → Backend API (Go/Fiber) → Services
   - kubectl
   - AWS CLI
   - Amazon EKS cluster
+  - Helm 3 (for monitoring stack deployment)
 
 ## Installation
 
@@ -181,6 +193,71 @@ The application is deployed on AWS EKS with automated CI/CD:
    - `AWS_SECRET_ACCESS_KEY`
    - `AWS_ACCOUNT_ID`
 
+## Monitoring & Observability
+
+The application includes a comprehensive monitoring stack for tracking metrics, visualizing data, and sending alerts.
+
+### Components
+
+- **Prometheus**: Collects and stores metrics from the Kubernetes cluster and applications
+- **Grafana**: Provides beautiful dashboards for visualizing metrics and monitoring system health
+- **Alertmanager**: Manages alerts and routes them to configured receivers (Slack)
+
+### Setup
+
+#### 1. Install Prometheus Stack
+
+Deploy the kube-prometheus-stack using Helm with custom values:
+
+```bash
+# Add Prometheus Helm repository
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+
+# Create monitoring namespace
+kubectl create namespace monitoring
+
+# Install Prometheus stack with custom configuration
+helm install prometheus-stack prometheus-community/kube-prometheus-stack \
+  -n monitoring \
+  -f backend/K8s/prometheus-values.yaml
+```
+
+#### 2. Configure Slack Alerting
+
+Create a Slack webhook URL ([Slack webhook creation guide](https://api.slack.com/messaging/webhooks)) and configure Alertmanager:
+
+```bash
+# Apply Slack secret configuration
+kubectl apply -f backend/K8s/alertmanager-slack.yaml
+```
+
+**Note**: Update the Slack webhook URL in `alertmanager-slack.yaml` with your own webhook before applying.
+
+#### 3. Access Monitoring Dashboards
+
+**Grafana**:
+```bash
+# Access via NodePort (default: 32000)
+kubectl get svc -n monitoring prometheus-stack-grafana
+```
+
+**⚠️ SECURITY WARNING**: The default credentials are `admin/admin`. **Change the password immediately** after first login to secure your Grafana instance. You can configure a custom password in `prometheus-values.yaml` before installation.
+
+**Prometheus**:
+```bash
+# Access via NodePort (default: 32090)
+kubectl get svc -n monitoring prometheus-stack-kube-prom-prometheus
+```
+
+### Features
+
+- **Real-time Metrics**: Monitor CPU, memory, network, and application-specific metrics
+- **Custom Dashboards**: Pre-configured Grafana dashboards for Kubernetes monitoring
+- **Alerting Rules**: Automated alerts for critical issues (high CPU, memory, pod crashes)
+- **Slack Notifications**: Instant alerts delivered to your Slack channel
+- **Historical Data**: Query and analyze historical metrics for troubleshooting
+
 ## API Endpoints
 
 The backend exposes the following main endpoints:
@@ -209,6 +286,11 @@ The backend exposes the following main endpoints:
 │   ├── middleware/         # HTTP middleware
 │   ├── config/             # Configuration management
 │   ├── K8s/                # Kubernetes manifests
+│   │   ├── backend-deployment.yaml      # Backend deployment config
+│   │   ├── backend-service.yaml         # Backend service config
+│   │   ├── backend-env-secret.yaml      # Environment secrets
+│   │   ├── prometheus-values.yaml       # Prometheus & Grafana config
+│   │   └── alertmanager-slack.yaml      # Slack alerting config
 │   └── Dockerfile          # Container configuration
 │
 └── .github/
