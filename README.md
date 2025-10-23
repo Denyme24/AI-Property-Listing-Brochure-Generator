@@ -225,7 +225,7 @@ helm install prometheus-stack prometheus-community/kube-prometheus-stack \
 
 #### 2. Configure Slack Alerting
 
-Create a Slack webhook URL and configure Alertmanager:
+Create a Slack webhook URL ([how to create a Slack webhook](https://api.slack.com/messaging/webhooks)) and configure Alertmanager:
 
 ```bash
 # Apply Slack secret configuration
@@ -241,7 +241,7 @@ kubectl apply -f backend/K8s/alertmanager-slack.yaml
 # Access via NodePort (default: 32000)
 kubectl get svc -n monitoring prometheus-stack-grafana
 
-# Default credentials:
+# Default credentials (CHANGE IMMEDIATELY after first login):
 # Username: admin
 # Password: admin (configure in prometheus-values.yaml)
 ```
