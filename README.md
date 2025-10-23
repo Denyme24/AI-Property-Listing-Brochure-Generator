@@ -5,8 +5,8 @@ An intelligent property listing brochure generator that leverages AI to create p
 ## Features
 
 - **AI-Powered Content Generation**: Automatically generates engaging property descriptions using OpenAI GPT
-- **Professional PDF Brochures**: Creates high-quality, professionally formatted PDF brochures
-- **Cloud Storage**: Automatically uploads generated brochures to AWS S3
+- **Professional PDF Brochures**: Creates high-quality, professionally formatted PDF brochures with images
+- **Cloud Storage**: Automatically uploads generated brochures and images to AWS S3
 - **Modern UI**: Responsive web interface built with Next.js and React
 - **Scalable Architecture**: Containerized application deployed on Kubernetes
 
@@ -215,7 +215,3 @@ The backend exposes the following main endpoints:
     └── workflows/
         └── ci-cd.yaml      # CI/CD pipeline
 ```
-
-## License
-
-This project is private and proprietary.
