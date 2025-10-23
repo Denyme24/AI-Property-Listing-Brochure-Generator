@@ -1,0 +1,48 @@
+grafana:
+  adminUser: admin
+  adminPassword: admin
+  service:
+    type: NodePort
+    nodePort: 32000
+
+prometheus:
+  service:
+    type: NodePort
+    nodePort: 32090
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+alertmanager:
+  config:
+    global:
+      resolve_timeout: 5m
+
+    route:
+      receiver: "slack-notifications"
+      group_wait: 10s
+      group_interval: 30s
+      repeat_interval: 5m
+
+    receivers:
+      - name: "slack-notifications"
+        slack_configs:
+          - api_url_file: /etc/alertmanager/secrets/slack_api_url
+            channel: "@U08UJDNELQH"
+            send_resolved: true
+            title: "[Kubernetes Alert] {{ .CommonLabels.alertname }}"
+            text: >-
+              *Alert:* {{ .CommonLabels.alertname }}
+              *Severity:* {{ .CommonLabels.severity }}
+              *Namespace:* {{ .CommonLabels.namespace }}
+              *Description:* {{ .Annotations.description }}
+
+  templateFiles: {}
+  alertmanagerSpec:
+    secrets:
+      - alertmanager-slack-secret
