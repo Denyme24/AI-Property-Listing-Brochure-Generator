@@ -2,20 +2,14 @@ name: Backend CI/CD
 
 on:
   push:
-    branches:
-      - main
     paths:
       - "backend/**"
-  pull_request:
-    branches:
-      - main
-    paths:
-      - "backend/**"
+  workflow_dispatch:
 
 env:
   AWS_REGION: eu-north-1
+  AWS_ACCOUNT_ID: 677276119247
   ECR_REPO: naman-raj
-  IMAGE_TAG: ${{ github.sha }}
   K8S_DEPLOYMENT: property-brochure-backend
   K8S_NAMESPACE: default
 
@@ -24,41 +18,43 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout the repo
-      - name: Checkout code
+      # Step 1: Checkout the code
+      - name: Checkout repo
         uses: actions/checkout@v3
 
-      # Step 2: Configure AWS credentials
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      # Step 3: Login to ECR
+      # Step 2: Log in to AWS ECR
       - name: Login to Amazon ECR
         id: ecr-login
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          region: ${{ env.AWS_REGION }}
 
-      # Step 4: Build Docker image
+      # Step 3: Build Docker image
       - name: Build Docker image
         run: |
-          docker build -t $ECR_REPO:$IMAGE_TAG ./backend
-          docker tag $ECR_REPO:$IMAGE_TAG ${{ steps.ecr-login.outputs.registry }}/$ECR_REPO:$IMAGE_TAG
+          IMAGE_TAG=${{ github.sha }}
+          docker build -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG backend/
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
 
-      # Step 5: Push Docker image to ECR
-      - name: Push Docker image
+      # Step 4: Push Docker image to ECR
+      - name: Push Docker image to ECR
         run: |
-          docker push ${{ steps.ecr-login.outputs.registry }}/$ECR_REPO:$IMAGE_TAG
+          IMAGE_TAG=${{ env.IMAGE_TAG }}
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
 
-      # Step 6: Update Kubernetes deployment
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: "v1.30.0" # match your cluster kubectl version
-
-      - name: Update deployment image in EKS
+      # Step 5: Configure kubectl to talk to EKS
+      - name: Configure kubectl for EKS
         run: |
-          kubectl set image deployment/$K8S_DEPLOYMENT backend=${{ steps.ecr-login.outputs.registry }}/$ECR_REPO:$IMAGE_TAG -n $K8S_NAMESPACE
+          aws eks update-kubeconfig --region $AWS_REGION --name PropertyBrochure-cluster
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      # Step 6: Deploy to Kubernetes
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl set image deployment/$K8S_DEPLOYMENT backend=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:${{ github.sha }} -n $K8S_NAMESPACE
           kubectl rollout status deployment/$K8S_DEPLOYMENT -n $K8S_NAMESPACE
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
