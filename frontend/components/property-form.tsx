@@ -121,7 +121,6 @@ export function PropertyForm({ onClose }: PropertyFormProps) {
       const errorMsg =
         error instanceof Error ? error.message : "An unexpected error occurred";
       toast.error(errorMsg);
-      console.error("Error submitting property:", error);
     } finally {
       setIsSubmitting(false);
     }

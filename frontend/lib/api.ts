@@ -60,7 +60,6 @@ export async function submitPropertyListing(
     return result;
 
   } catch (error) {
-    console.error('Error submitting property:', error);
     throw error;
   }
 }
@@ -96,7 +95,6 @@ export async function submitPropertyListingJSON(
     return result;
 
   } catch (error) {
-    console.error('Error submitting property:', error);
     throw error;
   }
 }
@@ -119,7 +117,6 @@ export async function downloadPDF(pdfUrl: string, filename: string = 'property-b
       document.body.removeChild(link);
     }, 100);
   } catch (error) {
-    console.error('Error downloading PDF:', error);
     throw error;
   }
 }
